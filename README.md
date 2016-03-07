@@ -1,3 +1,3 @@
-# pyBlog
+# picklePy
 README:
 microblog in python
