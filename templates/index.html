@@ -1,12 +1,17 @@
 {% extends "base.html" %}
 {% import "bootstrap/wtf.html" as wtf%}
 
-{% block title %}pyBlog{% endblock %}
+{% block title %}picklePy{% endblock %}
 
 {% block page_content %}
 <div class="page-header">
     <h1>Hello, {% if name %}{{ name }}{% else %}Stranger{% endif %}!</h1>
+    {% if not known %}
+    <p>Pleased to met you!</p>
     <p>{% if feel %}You feel {{ feel }} today.{% endif %}</p>
+    {% else %}
+    <p> Happy to see you again! </p>
+    {% endif %}
     <br>
     </div>
     {{ wtf.quick_form(form)  }}
