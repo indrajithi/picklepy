@@ -49,6 +49,8 @@ db = SQLAlchemy(app)
 migrate = Migrate(app,db)
 manager.add_command('db', MigrateCommand)
 mail = Mail(app)
+
+
 class Role(db.Model):
     __tablename__ = 'roles'
     id = db.Column(db.Integer, primary_key = True)
