@@ -14,10 +14,10 @@ from flask import Flask, render_template, session, redirect, url_for, flash
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask.ext.migrate import Migrate, MigrateCommand
 from flask.ext.mail import Mail
-from threading import Thread
+from flask.ext.mail import Message
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-test = "Success"
+
 app =  Flask(__name__)
 
 app.config['SECRET_KEY'] = 'hard to guess string'
@@ -29,7 +29,18 @@ app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-#app.config['DEBUG'] = True
+app.config['PICKLE_MAIL_SUBJECT_PREFIX'] = '[PicklePY]'
+app.config['PICKLE_MAIL_SENDER'] = 'Pickle Admin <admin@picklepy.com>'
+app.config['PICKLE_ADMIN'] = os.environ.get('PICKLE_ADMIN')
+
+
+def send_email(to, subject, template, **kwargs):
+    msg = Message(app.config['PICKLE_MAIL_SUBJECT_PREFIX'] + subject,
+                    sender= app.config['PICKLE_MAIL_SENDER'], recipients =[to])
+    msg.body = render_template(template + '.txt', **kwargs)
+    msg.body = render_template(template + '.html', **kwargs)
+    mail.send(msg)
+
 
 moment = Moment(app)
 manager = Manager(app)
@@ -38,6 +49,7 @@ db = SQLAlchemy(app)
 migrate = Migrate(app,db)
 manager.add_command('db', MigrateCommand)
 mail = Mail(app)
+
 
 class Role(db.Model):
     __tablename__ = 'roles'
@@ -66,19 +78,6 @@ def make_shell_context():
     return dict(app=app, db=db, User=User, Role=Role)
 manager.add_command("shell", Shell(make_context=make_shell_context))
 
-def send_async_email(app, msg):
-    with app,app_context():
-        mail.send(msg)
-
-def send_email(to, subject, template, **kwargs):
-    msg = Message(app.config['PICKLE_MAIL_SUBJECT_PREFIX'] + subject,
-                    sender=app.config['FLASK_MAIL_SENDER'], recipients=[to])
-    msg.body = render_template(termplate + '.txt', **kwargs)
-    msg.html = render_template(template + '.html', **kwargs)
-    thr = Thread(target=send_async_email, args=[app, msg])
-    thr.start()
-    return thr
-
 @app.route('/', methods=['GET', 'POST'])
 def index():    
     name = None
@@ -91,6 +90,11 @@ def index():
             user = User(username = form.name.data)
             db.session.add(user)
             session['known'] = False
+            
+            if app.config['PICKLE_ADMIN']:
+                send_email(app.config['PICKLE_ADMIN'], 'New User',
+                            'mail/new_user', user=user)
+
         else:
             session['known'] = True
         
@@ -102,10 +106,13 @@ def index():
         session['feel'] = form.feel.data
         form.feel.data = ''
         return redirect(url_for('index'))
+
     return render_template('index.html', 
         form=form, name=session.get('name'),
         feel=session.get('feel'), current_time=datetime.utcnow(),
         known = session.get('known', False))
+
+
 @app.route('/whoami')
 def whoami():
     user_agent = request.headers.get('User-Agent')
